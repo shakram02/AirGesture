@@ -11,6 +11,7 @@ import android.os.AsyncTask;
 
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -32,25 +33,26 @@ import org.opencv.android.OpenCVLoader;
 
 import java.io.IOException;
 import java.util.ArrayList;
+
 import edu.washington.cs.touchfreelibrary.sensors.CameraGestureSensor;
 
 
-public class MainActivity extends Activity implements CameraGestureSensor.Listener{
+public class MainActivity extends Activity implements CameraGestureSensor.Listener {
 
     private static int LENGTH_CAP = 500;
     private static int IMAGE_SIZE = 1024;
     private static int SCROLL_OFFSET = 10;
 
-    public static  String consumer_key = "KLwOfrGQ80ZBauTPmLYbjoHAnrAwFJAjfs8Z0QjlO6qf5WpBAA";
-    public static  String consumer_secret = "cCTqMq8lY69jLLvNIY6n5IWFQb8nD2hbEJA7AG8DdPQGfekgNW";
-    public static  String token = "BmUdLjlMriPaA8fFRYkMiMj9cUWy58NjQ6IZGvp5YXMH1Cv73Z";
-    public static  String token_secret = "8dMatYVgfiOBdwf2pHD0ma0wh4szkB9oL90zBBZmPPvVE0OyYe";
+    public static String consumer_key = "KLwOfrGQ80ZBauTPmLYbjoHAnrAwFJAjfs8Z0QjlO6qf5WpBAA";
+    public static String consumer_secret = "cCTqMq8lY69jLLvNIY6n5IWFQb8nD2hbEJA7AG8DdPQGfekgNW";
+    public static String token = "BmUdLjlMriPaA8fFRYkMiMj9cUWy58NjQ6IZGvp5YXMH1Cv73Z";
+    public static String token_secret = "8dMatYVgfiOBdwf2pHD0ma0wh4szkB9oL90zBBZmPPvVE0OyYe";
 
-    private RecyclerView mRecyclerView;
+    private static RecyclerView mRecyclerView;
     private LinearLayoutManager mLayoutManager;
     //private SurfaceView cameraPreview;
 
-
+    static AsyncTask<Void, Void, ArrayList<PhotoPost>> task;
     private Handler mHandler;
     private Camera camera;
     private int currentIndex = 0;
@@ -62,10 +64,8 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
-            switch(status)
-            {
-                case LoaderCallbackInterface.SUCCESS:
-                {
+            switch (status) {
+                case LoaderCallbackInterface.SUCCESS: {
 
                     if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                         // TODO: Consider calling
@@ -80,7 +80,6 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
                         ActivityCompat.requestPermissions(MainActivity.this,
                                 new String[]{Manifest.permission.CAMERA},
                                 0);
-
 
                         return;
                     }
@@ -125,40 +124,42 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
 
         mHandler = new Handler();
 
-        AsyncTask<Void, Void, ArrayList<PhotoPost>> task = new AsyncTask<Void, Void, ArrayList<PhotoPost>>() {
-            @Override
-            protected ArrayList<PhotoPost> doInBackground(Void... params) {
-                // Create a new client
-                JumblrClient client = new JumblrClient(consumer_key, consumer_secret);
-                client.setToken(token, token_secret);
 
-                Blog blog = client.blogInfo("theweatherlab.tumblr.com");
-                ArrayList<PhotoPost> finalArray = new ArrayList<>();
-                for (Post post : blog.posts()) {
-                    if (post.getClass().equals(PhotoPost.class)){
-                        finalArray.add((PhotoPost)post);
-                    }
-                }
-
-                return finalArray;
-            }
-
-            @Override
-            protected void onPostExecute(ArrayList<PhotoPost> result) {
-                PostAdapter adapter = new PostAdapter(result);
-                //MainActivity.this.gvPosts.setAdapter(adapter);
-                // specify an adapter (see also next example)
-                mRecyclerView.setAdapter(adapter);
-                //mHandler.post(scrollRunnable);
-            }
-        };
+        task = new DownloadPictures();
 
         task.execute();
 
 
     }
 
+    private static class DownloadPictures extends AsyncTask<Void, Void, ArrayList<PhotoPost>> {
 
+        @Override
+        protected ArrayList<PhotoPost> doInBackground(Void... params) {
+            // Create a new client
+            JumblrClient client = new JumblrClient(consumer_key, consumer_secret);
+            client.setToken(token, token_secret);
+
+            Blog blog = client.blogInfo("theweatherlab.tumblr.com");
+            ArrayList<PhotoPost> finalArray = new ArrayList<>();
+            for (Post post : blog.posts()) {
+                if (post.getClass().equals(PhotoPost.class)) {
+                    finalArray.add((PhotoPost) post);
+                }
+            }
+
+            return finalArray;
+        }
+
+        @Override
+        protected void onPostExecute(ArrayList<PhotoPost> result) {
+            PostAdapter adapter = new PostAdapter(result);
+            //MainActivity.this.gvPosts.setAdapter(adapter);
+            // specify an adapter (see also next example)
+            mRecyclerView.setAdapter(adapter);
+            //mHandler.post(scrollRunnable);
+        }
+    }
 
 
     public void setupCamera() {
@@ -221,13 +222,11 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
         */
     }
 
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults){
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
                 && grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "La permission camera n'est pas accordée", Toast.LENGTH_LONG).show();
-            return;
-        }
-        else {
+        } else {
             setupCamera();
         }
     }
@@ -288,30 +287,27 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
     }
 
 
-
-    protected void loadOpenCV()
-    {
+    protected void loadOpenCV() {
 
         if (!OpenCVLoader.initDebug()) {
             Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0, this, mLoaderCallback);
-        }
-        else {
+        } else {
             Log.d(TAG, "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
     }
+
     @Override
-    public void onPause()
-    {
-        super .onPause();
+    public void onPause() {
+        super.onPause();
         if (mGestureSensor != null)
             mGestureSensor.stop();
     }
+
     @Override
-    public void onResume()
-    {
-        super .onResume();
+    public void onResume() {
+        super.onResume();
         setupCamera();
     }
 
@@ -323,7 +319,7 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
             @Override
             public void run() {
                 Log.d(TAG, "gestureLength = " + gestureLength);
-                scrollByOffset(SCROLL_OFFSET, (int)gestureLength);
+                scrollByOffset(SCROLL_OFFSET, (int) gestureLength);
             }
         });
     }
@@ -336,7 +332,7 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
             @Override
             public void run() {
                 Log.d(TAG, "gestureLength = " + gestureLength);
-                scrollByOffset(-SCROLL_OFFSET, (int)gestureLength);
+                scrollByOffset(-SCROLL_OFFSET, (int) gestureLength);
             }
         });
 
@@ -370,11 +366,11 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
         int[] rainbow = MainActivity.this.getResources().getIntArray(R.array.backgroundColors);
         currentIndex += direction;
 
-        Log.d(TAG, "rainbow.length : " + rainbow.length  + " current index : " + currentIndex);
+        Log.d(TAG, "rainbow.length : " + rainbow.length + " current index : " + currentIndex);
         if (currentIndex < 0) {
-            currentIndex = rainbow.length -1;
+            currentIndex = rainbow.length - 1;
         }
-        if (currentIndex > rainbow.length -1) {
+        if (currentIndex > rainbow.length - 1) {
             currentIndex = 0;
         }
         int index = currentIndex % rainbow.length;
@@ -384,9 +380,9 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
 
     private void scrollByOffset(int offset, int gestureLength) {
         int length = (LENGTH_CAP - gestureLength);
-        if (length <1) {
+        if (length < 1) {
             length = 1;
         }
-        mRecyclerView.smoothScrollBy(0, (offset*length));
+        mRecyclerView.smoothScrollBy(0, (offset * length));
     }
 }

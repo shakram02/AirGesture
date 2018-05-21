@@ -223,7 +223,7 @@ public class MainActivity extends Activity implements CameraGestureSensor.Listen
 
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults){
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
-                && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                && grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "La permission camera n'est pas accordée", Toast.LENGTH_LONG).show();
             return;
         }
